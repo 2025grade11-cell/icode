@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>iCode - Visual App Builder</title>
+  <link
+    rel="stylesheet"
+    href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
+  />
+  <style>
+    body {
+      margin: 0;
+      font-family: sans-serif;
+      display: flex;
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    .sidebar {
+      width: 200px;
+      background: #f5f5f5;
+      padding: 10px;
+      border-right: 1px solid #ccc;
+      overflow-y: auto;
+    }
+
+    .component-item {
+      padding: 10px;
+      background: #e3f2fd;
+      margin-bottom: 10px;
+      text-align: center;
+      cursor: grab;
+      border-radius: 5px;
+      border: 1px solid #90caf9;
+    }
+
+    .canvas {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      background: #e0e0e0;
+    }
+
+    .phone-screen {
+      margin: 20px auto;
+      width: 300px;
+      height: 550px;
+      background: white;
+      border-radius: 20px;
+      border: 10px solid #333;
+      padding: 10px;
+      overflow: auto;
+      position: relative;
+    }
+
+    .app-content {
+      height: 100%;
+    }
+
+    .properties {
+      width: 250px;
+      background: #fff;
+      padding: 15px;
+      border-left: 1px solid #ccc;
+      overflow-y: auto;
+    }
+
+    .property-item {
+      margin-bottom: 15px;
+    }
+
+    .property-item label {
+      display: block;
+      margin-bottom: 5px;
+      font-size: 14px;
+      color: #333;
+    }
+
+    .property-item input,
+    .property-item select {
+      width: 100%;
+      padding: 6px;
+      font-size: 14px;
+    }
+
+    .dropped-component.selected {
+      outline: 2px dashed #ff6b6b;
+      padding: 5px;
+    }
+  </style>
+</head>
+<body>
+  <!-- Sidebar -->
+  <div class="sidebar">
+    <div class="component-item" draggable="true">Label</div>
+    <div class="component-item" draggable="true">TextBox</div>
+    <div class="component-item" draggable="true">Button</div>
+    <div class="component-item" draggable="true">Image</div>
+  </div>
+
+  <!-- Main Canvas -->
+  <div class="canvas">
+    <div class="phone-screen">
+      <div class="app-content" id="appContent"></div>
+    </div>
+  </div>
+
+  <!-- Properties Panel -->
+  <div class="properties">
+    <h3>Properties</h3>
+    <div class="property-item">
+      <label for="component-name">Component Name</label>
+      <input type="text" id="component-name" disabled />
+    </div>
+    <div class="property-item">
+      <label for="text-content">Text</label>
+      <input type="text" id="text-content" />
+    </div>
+    <div class="property-item">
+      <label for="text-color">Text Color</label>
+      <input type="color" id="text-color" />
+    </div>
+    <div class="property-item">
+      <label for="background-color">Background</label>
+      <input type="color" id="background-color" />
+    </div>
+  </div>
+
+  <script>
+    const componentMap = {
+      Label:
+        '<div style="padding: 8px;">Label</div>',
+      TextBox:
+        '<input type="text" placeholder="Enter text" style="padding: 8px; width: 100%;">',
+      Button:
+        '<button style="padding: 8px 16px; background-color: #4a6fa5; color: white; border: none; border-radius: 4px;">Button</button>',
+      Image:
+        '<div style="width:100%; height:100px; background-color: #ccc; display: flex; align-items: center; justify-content: center;">Image</div>',
+    };
+
+    document.querySelectorAll(".component-item").forEach((item) => {
+      item.addEventListener("dragstart", (e) => {
+        e.dataTransfer.setData("text/plain", item.textContent.trim());
+      });
+    });
+
+    const appContent = document.getElementById("appContent");
+
+    appContent.addEventListener("dragover", (e) => {
+      e.preventDefault();
+    });
+
+    appContent.addEventListener("drop", (e) => {
+      e.preventDefault();
+      const type = e.dataTransfer.getData("text/plain");
+      if (componentMap[type]) {
+        const wrapper = document.createElement("div");
+        wrapper.setAttribute("data-component", type);
+        wrapper.classList.add("dropped-component");
+        wrapper.innerHTML = componentMap[type];
+        appContent.appendChild(wrapper);
+      }
+    });
+
+    let selectedComponent = null;
+
+    appContent.addEventListener("click", (e) => {
+      const target = e.target.closest(".dropped-component");
+      if (!target) return;
+
+      document
+        .querySelectorAll(".dropped-component")
+        .forEach((el) => el.classList.remove("selected"));
+
+      selectedComponent = target;
+      selectedComponent.classList.add("selected");
+
+      const inner = selectedComponent.querySelector("*");
+
+      document.getElementById("component-name").value =
+        selectedComponent.getAttribute("data-component");
+
+      document.getElementById("text-content").value = inner.innerText || inner.value || "";
+
+      document.getElementById("text-color").value = rgbToHex(
+        getComputedStyle(inner).color
+      );
+
+      document.getElementById("background-color").value = rgbToHex(
+        getComputedStyle(inner).backgroundColor
+      );
+    });
+
+    document.getElementById("text-content").addEventListener("input", function () {
+      if (!selectedComponent) return;
+      const el = selectedComponent.querySelector("*");
+      if (el.tagName === "INPUT") {
+        el.value = this.value;
+      } else if (el.tagName === "BUTTON" || el.tagName === "DIV") {
+        el.innerText = this.value;
+      }
+    });
+
+    document.getElementById("text-color").addEventListener("input", function () {
+      if (selectedComponent)
+        selectedComponent.querySelector("*").style.color = this.value;
+    });
+
+    document.getElementById("background-color").addEventListener("input", function () {
+      if (selectedComponent)
+        selectedComponent.querySelector("*").style.backgroundColor = this.value;
+    });
+
+    function rgbToHex(rgb) {
+      const result = /^rgb\((\d+),\s*(\d+),\s*(\d+)\)$/.exec(rgb);
+      return result
+        ? "#" +
+            result
+              .slice(1)
+              .map((x) =>
+                ("0" + parseInt(x).toString(16)).slice(-2)
+              )
+              .join("")
+        : rgb;
+    }
+  </script>
+</body>
+</html>
